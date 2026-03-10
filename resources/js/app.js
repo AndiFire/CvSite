@@ -1,7 +1,5 @@
-import './bootstrap';
-import {createApp} from 'vue'
-import Home from './components/Home.vue'
-import BlackHole from './components/BlackHole.vue'
+import "./bootstrap";
+import { createApp } from "vue";
+import App from "./App.vue";
 
-createApp(Home).mount('#app')
-createApp(BlackHole).mount('#app')
+createApp(App).mount("#app");

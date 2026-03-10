@@ -1,102 +1,132 @@
-   <template>
-   <div id="space-bg" class="bg-black fixed inset-0 -z-10"></div>
-   </template>
+<template>
+   <div ref="container" class="fixed inset-0 -z-10"></div>
+</template>
 
-   <script setup>
-   import { onMounted } from "vue"
-   import * as THREE from "three"
+<script setup>
+   import { onMounted, onBeforeUnmount, ref } from "vue";
+   import * as THREE from "three";
 
-   onMounted(() => {
+   const container = ref();
 
-   const scene = new THREE.Scene()
+   let renderer, scene, camera, starMesh;
+   let animationId;
 
-   const camera = new THREE.PerspectiveCamera(
-      75,
-      window.innerWidth / window.innerHeight,
-      0.1,
-      2000
-   )
+   let mouse = { x: 0, y: 0 };
+   let starPositions;
 
-   const renderer = new THREE.WebGLRenderer({ alpha: true })
-   renderer.setSize(window.innerWidth, window.innerHeight)
+   function createBackground() {
+   const geometry = new THREE.BufferGeometry();
 
-   document.getElementById("space-bg").appendChild(renderer.domElement)
+   const count = 2000;
+   starPositions = new Float32Array(count * 3);
 
-   camera.position.z = 30
-
-   const starGeometry = new THREE.BufferGeometry()
-   const starCount = 2000
-
-   const positions = new Float32Array(starCount * 3)
-
-   for (let i = 0; i < starCount * 3; i++) {
-      positions[i] = (Math.random() - 0.5) * 2000
+   for (let i = 0; i < count; i++) {
+      starPositions[i * 3] = (Math.random() - 0.5) * 200;
+      starPositions[i * 3 + 1] = (Math.random() - 0.5) * 200;
+      starPositions[i * 3 + 2] = (Math.random() - 0.5) * 200;
    }
 
-   starGeometry.setAttribute(
+   geometry.setAttribute(
       "position",
-      new THREE.BufferAttribute(positions, 3)
-   )
+      new THREE.BufferAttribute(starPositions, 3)
+   );
 
-   const starMaterial = new THREE.PointsMaterial({
-      color: 0xffffff,
-      size: 1
-   })
+   // ⭐ круглая звездная текстура
+   const canvas = document.createElement("canvas");
+   canvas.width = 64;
+   canvas.height = 64;
 
-   const stars = new THREE.Points(starGeometry, starMaterial)
-   scene.add(stars)
+   const ctx = canvas.getContext("2d");
 
+   const gradient = ctx.createRadialGradient(
+      32, 32, 0,
+      32, 32, 32
+   );
 
-   const blackHole = new THREE.Mesh(
-      new THREE.SphereGeometry(5, 64, 64),
-      new THREE.MeshBasicMaterial({ color: 0x000000 })
-   )
+   gradient.addColorStop(0, "white");
+   gradient.addColorStop(1, "transparent");
 
-   scene.add(blackHole)
+   ctx.fillStyle = gradient;
+   ctx.fillRect(0, 0, 64, 64);
 
-   const diskGeometry = new THREE.RingGeometry(6, 12, 128)
-   const diskMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffff00,
-      side: THREE.DoubleSide,
+   const texture = new THREE.CanvasTexture(canvas);
+
+   const material = new THREE.PointsMaterial({
+      size: 0.8,
+      map: texture,
       transparent: true,
-      opacity: 0.6
+      depthWrite: false
+   });
 
-   })
-
-   const disk = new THREE.Mesh(diskGeometry, diskMaterial)
-   disk.rotation.x = 2
-   disk.rotation.y = 3.5
-   disk.rotation.z = 3.5
-
-
-   scene.add(disk)
-
-   const mouse = { x: 0, y: 0 }
-   window.addEventListener("mousemove", (e) => {
-      mouse.x = (e.clientX / window.innerWidth) - 0.5
-      mouse.y = (e.clientY / window.innerHeight) - 0.5
-   })
+   return new THREE.Points(geometry, material);
+   }
 
 
    function animate() {
-      requestAnimationFrame(animate)
+   animationId = requestAnimationFrame(animate);
 
-      stars.rotation.y += 0.0005 + mouse.x * 0.002
-      stars.rotation.x += mouse.y * 0.001
+   starMesh.rotation.y += 0.0004;
 
-      disk.rotation.y += 0.0001
-      disk.rotation.x += 0.0001
+   const positions = starMesh.geometry.attributes.position.array;
 
-      renderer.render(scene, camera)
+   for (let i = 0; i < positions.length; i += 3) {
+      const dx = positions[i] - mouse.x * 40;
+      const dy = positions[i + 1] - mouse.y * 40;
+
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const force = Math.max(0, 1 - dist / 30);
+
+      positions[i] += dx * force * 0.002;
+      positions[i + 1] += dy * force * 0.002;
    }
 
-   animate()
+   starMesh.geometry.attributes.position.needsUpdate = true;
+
+   renderer.render(scene, camera);
+   }
+
+
+   onMounted(() => {
+   const el = container.value;
+
+   scene = new THREE.Scene();
+
+   camera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      1,
+      500
+   );
+
+   camera.position.z = 50;
+
+   renderer = new THREE.WebGLRenderer({
+      antialias: true
+   });
+
+   renderer.setSize(window.innerWidth, window.innerHeight);
+   el.appendChild(renderer.domElement);
+
+   starMesh = createBackground();
+   scene.add(starMesh);
+
+   window.addEventListener("mousemove", e => {
+      mouse.x = (e.clientX / window.innerWidth - 0.5) * 2;
+      mouse.y = (e.clientY / window.innerHeight - 0.5) * 2;
+   });
 
    window.addEventListener("resize", () => {
-      camera.aspect = window.innerWidth / window.innerHeight
-      camera.updateProjectionMatrix()
-      renderer.setSize(window.innerWidth, window.innerHeight)
-   })
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+   });
 
-   })
-   </script>
+   animate();
+   });
+
+   onBeforeUnmount(() => {
+   cancelAnimationFrame(animationId);
+   });
+</script>
+
