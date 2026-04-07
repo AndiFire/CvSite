@@ -1,5 +1,8 @@
 <template>
-   <div ref="container" class="fixed inset-0 -z-10"></div>
+   <!-- <video autoplay loop muted playsinline class="fixed inset-0 w-full h-full object-cover -z-10">
+      <source src="/public/videos/blackhole.mp4" type="video/mp4">
+   </video> -->
+   <div ref="container" class="fixed inset-0 z-0 pointer-events-none"></div>
 </template>
 
 <script setup>
@@ -31,7 +34,7 @@
       new THREE.BufferAttribute(starPositions, 3)
    );
 
-   // ⭐ круглая звездная текстура
+   // круглая звездная текстура
    const canvas = document.createElement("canvas");
    canvas.width = 64;
    canvas.height = 64;
@@ -55,7 +58,8 @@
       size: 0.8,
       map: texture,
       transparent: true,
-      depthWrite: false
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
    });
 
    return new THREE.Points(geometry, material);
@@ -102,9 +106,11 @@
    camera.position.z = 50;
 
    renderer = new THREE.WebGLRenderer({
-      antialias: true
+      antialias: true,
+      // alpha: true
    });
 
+   // renderer.setClearColor(0x000000, 0);
    renderer.setSize(window.innerWidth, window.innerHeight);
    el.appendChild(renderer.domElement);
 
